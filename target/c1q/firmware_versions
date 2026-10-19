@@ -1,0 +1,4 @@
+# Fallback firmware versions (PDA/CSC/MODEM), used only when Samsung's
+# "latest version" lookup (version.xml) returns nothing for MODEL/CSC.
+SM-N981N/KOO=N981NKSSAHYH1/N981NOKRAHYH1/N981NKSSAHYH1
+SM-N9810/TGY=
