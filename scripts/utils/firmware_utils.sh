@@ -102,9 +102,20 @@ GET_LATEST_FIRMWARE()
     _CHECK_NON_EMPTY_PARAM "MODEL" "$1" || return 1
     _CHECK_NON_EMPTY_PARAM "CSC" "$2" || return 1
 
-    curl -s --retry 3 -m 3 -A "samsung $1 SyncML DM Client" \
+    local LATEST
+    LATEST="$(curl -s --retry 3 -m 3 -A "samsung $1 SyncML DM Client" \
         "https://fota-cloud-dn.ospserver.net/firmware/$2/$1/version.xml" \
-        | perl -nE 'say $1 if /<latest[^>]*>(.*?)<\/latest>/'
+        | perl -nE 'say $1 if /<latest[^>]*>(.*?)<\/latest>/')"
+
+    # Fallback for models whose version.xml is empty (e.g. Korean Note 20):
+    # target/<device>/firmware_versions holds "MODEL/CSC=PDA/CSC/MODEM" lines.
+    if [ ! "$LATEST" ] && [ -f "$SRC_DIR/target/$TARGET_CODENAME/firmware_versions" ]; then
+        LATEST="$(grep "^$1/$2=" "$SRC_DIR/target/$TARGET_CODENAME/firmware_versions" | head -n 1 | cut -d "=" -f 2-)"
+        [ "$LATEST" ] && echo "Using pinned firmware version for $1/$2: $LATEST" >&2
+    fi
+
+    [ "$LATEST" ] && echo "$LATEST"
+    return 0
 }
 
 # PARSE_FIRMWARE_STRING <string>
