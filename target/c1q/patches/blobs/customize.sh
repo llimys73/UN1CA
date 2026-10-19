@@ -58,7 +58,8 @@ ADD_TO_WORK_DIR "r9qxxx" "system" "system/lib64/libdk_native_keymaster.so" 0 0 6
 DELETE_FROM_WORK_DIR "system" "system/lib64/vendor.samsung.hardware.keymint-V1-ndk.so"
 LOG_STEP_OUT
 
-ADD_TO_WORK_DIR "a52qnsxx" "vendor" "bin/hw/wpa_supplicant" 0 2000 755 "u:object_r:hal_wifi_supplicant_default_exec:s0"
+# Note 20 uses Broadcom BCM4375 Wi-Fi: keep the stock vendor wpa_supplicant
+# (the r8q/A52 Qualcomm supplicant breaks Wi-Fi scanning).
 
 LOG_STEP_IN "- Adding AIDL vibrator HAL"
 DELETE_FROM_WORK_DIR "vendor" "bin/hw/vendor.samsung.hardware.vibrator@2.2-service"

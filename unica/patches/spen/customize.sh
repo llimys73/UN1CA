@@ -24,6 +24,12 @@ if ! $SOURCE_HAS_SPEN; then
             "system" "system/lib64/libsmpsft.smps.samsung.so" 0 0 644 "u:object_r:system_lib_file:s0"
         ADD_TO_WORK_DIR "b0qxxx" "system" "system/media/audio/pensounds" 0 0 755 "u:object_r:system_file:s0"
         ADD_TO_WORK_DIR "b0qxxx" "system" "system/priv-app/AirCommand/AirCommand.apk" 0 0 644 "u:object_r:system_file:s0"
+        # Note 20 generation S Pen: the S22 Ultra AirCommand crashes, use the
+        # compatible One UI 6.0 package shipped with the target when present.
+        if [ -f "$SRC_DIR/target/$TARGET_CODENAME/spen/system/priv-app/AirCommand/AirCommand.apk" ]; then
+            LOG "- Installing target AirCommand compatibility package"
+            ADD_TO_WORK_DIR "$SRC_DIR/target/$TARGET_CODENAME/spen" "system" "system/priv-app/AirCommand/AirCommand.apk" 0 0 644 "u:object_r:system_file:s0"
+        fi
         ADD_TO_WORK_DIR "b0qxxx" "system" "system/priv-app/AirReadingGlass/AirReadingGlass.apk" 0 0 644 "u:object_r:system_file:s0"
         ADD_TO_WORK_DIR "b0qxxx" "system" "system/priv-app/SmartEye/SmartEye.apk" 0 0 644 "u:object_r:system_file:s0"
     else
