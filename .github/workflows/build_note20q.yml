@@ -1,0 +1,121 @@
+name: Build Note 20 Snapdragon (c1q)
+
+# Personal build of the Galaxy Note 20 (Snapdragon) UN1CA port.
+# Runs only when started manually from the Actions tab.
+# Repository settings (Settings > Secrets and variables > Actions):
+#   C1Q_FIRMWARE     (secret)   SM-N981N/KOO/<IMEI or its first 8 digits>   (KOO = letter O)
+#   C1Q_KERNEL_REPO  (variable) https://github.com/<you>/<repo>/releases/download/c1q-kor
+# Signed with the public AOSP test keys.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sim:
+        description: 'SIM trays (1 = SM-N981N, 2 = SM-N9810)'
+        type: choice
+        options: ['1', '2']
+        default: '1'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    env:
+      C1Q_FIRMWARE: ${{ secrets.C1Q_FIRMWARE }}
+      C1Q_KERNEL_REPO: ${{ vars.C1Q_KERNEL_REPO }}
+      C1Q_SIM_TRAYCOUNT: ${{ github.event.inputs.sim }}
+
+    steps:
+      - name: Check inputs
+        run: |
+          [ -n "$C1Q_FIRMWARE" ] || { echo "::error::Set the C1Q_FIRMWARE repository secret"; exit 1; }
+          case "$C1Q_FIRMWARE" in
+            */K00/*) echo "::error::C1Q_FIRMWARE uses K00 (zeros). It must be KOO (letter O)"; exit 1 ;;
+          esac
+          [ -n "$C1Q_KERNEL_REPO" ] || { echo "::error::Set the C1Q_KERNEL_REPO variable"; exit 1; }
+
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          submodules: 'recursive'
+
+      - name: Free disk space (1/3)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo docker builder prune -a
+
+      - name: Free disk space (2/3)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+
+      - name: Free disk space (3/3)
+        uses: rokibhasansagar/slimhub_actions@main
+        with:
+          retain: 'compiler_cmake'
+
+      - name: Set up build environment
+        run: |
+          sudo apt update
+          DEBIAN_FRONTEND=noninteractive sudo apt install -yq \
+            attr ccache clang ffmpeg libbrotli-dev libbz2-dev \
+            libgtest-dev libprotobuf-dev libunwind-dev libpcre2-dev \
+            libzstd-dev linux-modules-extra-$(uname -r) lld protobuf-compiler webp
+          sudo modprobe erofs f2fs
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Generate build config
+        run: |
+          source ./buildenv.sh c1q
+          {
+            echo "DEBUG=$DEBUG"
+            echo "SRC_DIR=$SRC_DIR"
+            echo "OUT_DIR=$OUT_DIR"
+            echo "ODIN_DIR=$ODIN_DIR"
+            echo "FW_DIR=$FW_DIR"
+            echo "TOOLS_DIR=$TOOLS_DIR"
+            echo "APKTOOL_DIR=$APKTOOL_DIR"
+            echo "WORK_DIR=$WORK_DIR"
+            echo "TMP_DIR=$TMP_DIR"
+          } >> "$GITHUB_ENV"
+          sed -e "/Automatically/d" -e "s/\"//g" "$OUT_DIR/config.sh" >> "$GITHUB_ENV"
+          echo "$TOOLS_DIR/bin" >> "$GITHUB_PATH"
+
+      - name: Build dependencies
+        run: ./scripts/build_dependencies.sh
+
+      - name: Download stock firmwares (S22 source + Note 20)
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: ./scripts/download_fw.sh
+
+      - name: Extract stock firmwares
+        run: ./scripts/extract_fw.sh
+
+      - name: Add swapspace
+        uses: pierotofy/set-swap-space@v1.0
+        with:
+          swap-size-gb: 12
+
+      - name: Build ROM
+        run: ./scripts/make_rom.sh
+
+      - name: Upload ROM
+        uses: actions/upload-artifact@v4
+        with:
+          name: UN1CA-c1q
+          path: |
+            out/UN1CA_*.zip
+            !out/*-target_files.zip
+          compression-level: 0
+          retention-days: 5
