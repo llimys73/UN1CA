@@ -108,7 +108,7 @@ jobs:
           swap-size-gb: 12
 
       - name: Build ROM
-        run: ./scripts/make_rom.sh
+        run: ./scripts/make_rom.sh -z
 
       - name: Upload ROM
         uses: actions/upload-artifact@v4
